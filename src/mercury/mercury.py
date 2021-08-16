@@ -1,7 +1,13 @@
-﻿import serial
+﻿"""
+Implements Mercury Protocol for version 05.2021
+
+"""
+
 import struct
 import time
 import logging
+
+import serial
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -10,7 +16,15 @@ logging.basicConfig(
 WAIT_RESPONSE = 0.150
 
 
+class MercuryConnectionException(Exception):
+    pass
+
+
 class MercuryADDR:
+    """
+    Address constants
+    """
+
     UNIVERSAL = 0x00
     UNICAST_SPACE = range(0x01, 0xF1)
     BROADCAST = 0xFE
@@ -18,17 +32,29 @@ class MercuryADDR:
 
 
 class MercuryOPS:
+    """
+    Supported Operation codes
+    """
+
     TEST = 0
     OPEN = 1
     CLOSE = 2
 
 
 class MercuryLEVEL:
+    """
+    User levels for MercuryOPS.OPEN
+    """
+
     USER = b"\x01"
     ADMIN = b"\x02"
 
 
 class MercuryREPLY:
+    """
+    Reply Status Codes
+    """
+
     OK = 0
     BAD_COMMAND = 1
     INTERNAL_ERROR = 2
@@ -58,7 +84,7 @@ def crc16(data: bytes):
     """
     CRC16-MODBUS adapted from Mercury Documentation
     """
-    srCRCHi = bytearray(
+    sr_crc_hi = bytearray(
         [
             0x00,
             0xC1,
@@ -318,7 +344,7 @@ def crc16(data: bytes):
             0x40,
         ]
     )
-    srCRCLo = bytearray(
+    sr_crc_low = bytearray(
         [
             0x00,
             0xC0,
@@ -578,24 +604,28 @@ def crc16(data: bytes):
             0x40,
         ]
     )
-    InitCRC = 0xFFFF
+    initial_crc = 0xFFFF
 
-    def UpdCRC(C, oldCRC):
-        arrCRC = bytearray(list(oldCRC.to_bytes(2, byteorder="big")))
-        i = arrCRC[1] ^ C
-        arrCRC[1] = arrCRC[0] ^ srCRCHi[i]
-        arrCRC[0] = srCRCLo[i]
-        return int.from_bytes(arrCRC, byteorder="big", signed=False)
+    def update_crc(data_byte, old_crc):
+        crc_array = bytearray(list(old_crc.to_bytes(2, byteorder="big")))
+        i = crc_array[1] ^ data_byte
+        crc_array[1] = crc_array[0] ^ sr_crc_hi[i]
+        crc_array[0] = sr_crc_low[i]
+        return int.from_bytes(crc_array, byteorder="big", signed=False)
 
-    crc = InitCRC
-    for d in data:
-        crc = UpdCRC(d, crc)
+    crc = initial_crc
+    for data_byte in data:
+        crc = update_crc(data_byte, crc)
     first = crc // 256
     second = crc % 256
     return bytearray([second, first])
 
 
 class MercuryRequest:
+    """
+    Encodes Request messages
+    """
+
     def __init__(self, address, request_code, args=None):
         self.address = address
         self.request_code = request_code
@@ -606,25 +636,28 @@ class MercuryRequest:
     def __len__(self):
         return len(self.value)
 
-    def append_checksum(self, data):
-        crc = crc16(data)
-        return data + crc
-
     @property
     def value(self):
+        """
+        Encodes fields into a binary value
+        """
         if self._value is None:
-            value = struct.pack(
+            self._value = struct.pack(
                 self.format,
                 self.address,
                 self.request_code,
             )
             if self.params is not None:
-                value += self.params
-            self._value = self.append_checksum(value)
+                self._value += self.params
+            self._value += crc16(self._value)
         return self._value
 
 
 class MercuryReply:
+    """
+    Decodes Reply Messages from binary frames
+    """
+
     def __init__(self, data, req_rep=False):
         self.header_offset = 1
         if req_rep:
@@ -632,48 +665,73 @@ class MercuryReply:
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
 
-        self.fields = [d for d in struct.unpack(self.format, data)]
+        self.fields = list(struct.unpack(self.format, data))
 
         if not self.verify_checksum():
             crc = crc16(self._data[:-2])
             crc_d = self.checksum
-            logging.warning("bad checksum in {data}: {crc_d}, expected {crc}")
+            logging.warning("bad checksum in %s: %i, expected %i", data, crc_d, crc)
         if not self.is_ok():
             logging.error(
-                MercuryREPLYStatuses.get(self.status, f"Unknow error: {self.status}")
+                MercuryREPLYStatuses.get(self.status, f"Unknown error: {self.status}")
             )
 
     def __len__(self):
-        return len(self.data)
+        return len(self._data)
 
     def verify_checksum(self):
+        """
+        Verifies Frame Checksum is correct
+        """
         return crc16(self._data[:-2]) == self.checksum
 
     @property
     def checksum(self):
+        """
+        Extracts frame checksum
+        """
         return self.fields[-1]
 
     @property
     def addr(self):
+        """
+        Extracts frame address
+        """
         return self.fields[0]
 
     @property
     def raw_data(self):
+        """
+        Produce original binary data
+        """
         return self._data
 
     @property
     def parsed_data(self):
+        """
+        Returns data extracted from the frame
+        """
         return self.fields[self.header_offset : -1]
 
     @property
     def status(self):
+        """
+        Read status field from data
+        """
         return self.parsed_data[0] & 0x07
 
     def is_ok(self):
+        """
+        True if operation status is OK (Success)
+        """
         return self.status == MercuryREPLY.OK
 
 
 class MercuryDriver:
+    """
+    Implements basic communcitation operations
+    """
+
     def __init__(self, com, addr, speed=9600):
         self.com = com
         assert speed in MercurySPEEDS
@@ -682,6 +740,10 @@ class MercuryDriver:
         self.addr = addr
 
     def communicate(self, req):
+        """
+        Opens serial port, sends request, reads reply.
+        Detects and strips CAN echo when possible.
+        """
         with serial.Serial(
             self.com,
             self.speed,
@@ -689,48 +751,58 @@ class MercuryDriver:
             serial.PARITY_NONE,
             serial.STOPBITS_ONE,
         ) as ser:
-            logging.debug(f"SEND: {req}")
+            logging.debug("SEND: %s", req)
             ser.write(req)
             time.sleep(WAIT_RESPONSE)
             out = ser.read_all()
-            logging.debug(f"READ: {out}")
+            logging.debug("READ: %s", req)
             reply = out
-            if len(out) > len(req):
+            if len(out) >= len(req):
                 echo = out[: len(req)]
                 e_i = int.from_bytes(echo, byteorder="big", signed=False)
                 r_i = int.from_bytes(req, byteorder="big", signed=False)
                 if e_i == r_i and hash(echo) == hash(req):
-                    logging.debug(f"stripping echo: {echo}")
+                    logging.debug("stripping echo: %s", echo)
                 reply = ""
                 try:
                     reply = out[len(req) :]
-                except Exception:
-                    logging.error(f"no reply after stripping echo")
-                    raise
+                except IndexError:
+                    logging.error("no reply after stripping echo")
+                    if len(out) == len(req):
+                        raise
             return reply
 
     def test_connection(self):
+        """
+        Runs a connection test for the specified address
+        """
         req = MercuryRequest(self.addr, MercuryOPS.TEST).value
         try:
             reply = MercuryReply(self.communicate(req))
-        except:
-            logging.fatal(f"Connection failed to {self.addr}")
-            raise Exception("Connection failure")
-        logging.debug(f"connection test reply : {reply}")
+        except Exception as ex:
+            logging.fatal("Connection failed to %s", self.addr)
+            raise MercuryConnectionException("Connection failure") from ex
+        logging.debug("connection test reply : %s", {reply.raw_data})
         return reply.is_ok()
 
     def logout(self):
+        """
+        Explicitly Closes communication channel
+        """
         req = MercuryRequest(self.addr, MercuryOPS.CLOSE).value
         reply = MercuryReply(self.communicate(req))
-        logging.debug(f"connection close reply: {reply}")
+        logging.debug("connection close reply: %s", reply.raw_data)
         return reply.is_ok()
 
     def login(self, user=MercuryLEVEL.ADMIN, psw=None):
+        """
+        Opens Communications Channel with specified user code and password
+        """
         if psw is None:
             psw = MercuryPASSWORD.get(user, 0)
         psw_s = str(psw).zfill(6)
         psw_e = bytes([int(d) for d in psw_s])
-        req = MercuryRequest(sn, MercuryOPS.OPEN, user + psw_e).value
+        req = MercuryRequest(self.addr, MercuryOPS.OPEN, user + psw_e).value
         reply = MercuryReply(self.communicate(req))
-        logging.debug(f"login reply: {reply}")
+        logging.debug("login reply: %s", reply.raw_data)
         return reply.is_ok()
