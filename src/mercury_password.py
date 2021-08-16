@@ -1,6 +1,6 @@
-﻿'''
+﻿"""
 Implements password search
-'''
+"""
 
 import argparse
 import logging
