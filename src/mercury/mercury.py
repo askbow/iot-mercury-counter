@@ -673,7 +673,7 @@ class MercuryReply:
     Decodes Reply Messages from binary frames
     """
 
-    def __init__(self, data, req_rep=False):
+    def __init__(self, data, req_rep=False, verify=True):
         if len(data) < 1:
             m = "Empty data packet. Cannot parse."
             logging.critical(m)
@@ -695,7 +695,7 @@ class MercuryReply:
             raise
         logging.debug(f"parsed {repr_byte_arr(self._data)} into {self.fields}")
 
-        if not self.verify_checksum():
+        if verify and not self.verify_checksum():
             crc = self.raw_checksum
             crc_d = self.checksum
             logging.warning(
@@ -726,7 +726,7 @@ class MercuryReply:
         """
         Extracts frame checksum
         """
-        return self.fields[self.trailer_offset]
+        return self._data[self.trailer_offset]
 
     @property
     def raw_checksum(self):
