@@ -5,6 +5,17 @@ import src.mercury.mercury as mercury
 from src.mercury.mercury import MercuryRequest
 
 
+def test_mercury_importable():
+    import src.mercury.mercury as mercury  # noqa
+    from src.mercury.mercury import MercuryRequest   # noqa
+    from src.mercury.mercury import MercuryReply  # noqa
+    from src.mercury.mercury import MercuryDriver  # noqa
+    from src.mercury.mercury import MercuryADDR  # noqa
+    from src.mercury.mercury import MercuryOPS  # noqa
+    from src.mercury.mercury import MercuryLEVEL  # noqa
+    from src.mercury.mercury import MercuryREPLY  # noqa
+
+
 def test_repr_byte_arr():
     barr = b"\x01\x02\x03"
     assert mercury.repr_byte_arr(barr) == "01 02 03"
