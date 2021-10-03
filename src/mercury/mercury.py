@@ -682,7 +682,9 @@ class MercuryReply:
             self.header_offset += 1
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
+        self.parse_data()
 
+    def parse_data(self):
         logging.debug(f"parsing reply: {repr_byte_arr(self._data)} using {self.format}")
         try:
             self.fields = list(struct.unpack(self.format, data))
@@ -690,7 +692,8 @@ class MercuryReply:
             m = f"failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}"
             logging.critical(m)
             raise
-        logging.debug(f"parsed {repr_byte_arr(self._data)} into {self.fields}")
+        logging.debug(f"parsed {repr_byte_arr(self._data)} into {self.fields} ({self.parsed_data})")
+        logging.debug(f'addr: {self.addr}, status: {self.status}, checksum: {self.checksum}')
 
         if verify and not self.verify_checksum():
             crc = self.raw_checksum
