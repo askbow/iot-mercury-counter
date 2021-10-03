@@ -676,7 +676,7 @@ class MercuryReply:
             logging.critical(m)
             raise MercuryReplyDataError(m)
 
-        self.trailer_offset = -1
+        self.trailer_offset = -2
         self.header_offset = 1
         if req_rep:
             self.header_offset += 1
@@ -698,7 +698,7 @@ class MercuryReply:
             logging.warning(
                 "bad checksum in %s: %s, expected %s",
                 repr_byte_arr(self._data),
-                repr_byte_arr([crc_d,]),
+                repr_byte_arr(crc_d),
                 repr_byte_arr(crc),
             )
         if not self.is_ok():
@@ -716,14 +716,16 @@ class MercuryReply:
         """
         Verifies Frame Checksum is correct
         """
-        return self.raw_checksum == self.checksum
+        crc = self.raw_checksum
+        crc_d = self.checksum
+        return repr_byte_arr(crc_d) == repr_byte_arr(crc)
 
     @property
     def checksum(self):
         """
         Extracts frame checksum
         """
-        return self._data[self.trailer_offset]
+        return bytearray(self._data[self.trailer_offset:])
 
     @property
     def raw_checksum(self):
@@ -859,11 +861,11 @@ class MercuryDriver:
             for req in reqs:
                 ser.write(req)
                 time.sleep(WAIT_RESPONSE)
-                out = ser.read_all()
+                out = ser.read_all().lstrip()
                 req_repr = repr_byte_arr(req)
                 out_repr = repr_byte_arr(out)
                 logging.debug(f"send: {req} ({req_repr}), recv: {out} ({out_repr})")
-                if len(out) != len(req) or out != req:
+                if len(req) > len(out) or repr_byte_arr(out[:len(req)]) != req_repr:
                     logging.info("Echo not found")
                     return "disabled"
         logging.info("Found evidence of echo on all counts")
