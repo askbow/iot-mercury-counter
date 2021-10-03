@@ -665,8 +665,15 @@ class MercuryReply:
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
 
-        self.fields = list(struct.unpack(self.format, data))
-
+        logging.debug(f'parsing reply: {self._data} using {self.format}')
+        try:
+            self.fields = list(struct.unpack(self.format, data))
+        except Exception as e:
+            m = f'failed to parse data {self._data} using {self.format}: {e}'
+            logging.critical(m)
+            raise
+        logging.debug(f'parsed {self._data} into {self.fields}')
+        
         if not self.verify_checksum():
             crc = crc16(self._data[:-2])
             crc_d = self.checksum
