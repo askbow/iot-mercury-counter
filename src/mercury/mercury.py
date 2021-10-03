@@ -19,6 +19,8 @@ WAIT_RESPONSE = 0.150
 class MercuryConnectionException(Exception):
     pass
 
+class MercuryReplyDataError(ValueError):
+    pass
 
 class MercuryADDR:
     """
@@ -659,6 +661,11 @@ class MercuryReply:
     """
 
     def __init__(self, data, req_rep=False):
+        if len(data) < 1:
+            m = 'Empty data packet. Cannot parse.'
+            logging.critical(m)
+            raise MercuryReplyDataError(m)
+
         self.header_offset = 1
         if req_rep:
             self.header_offset += 1
