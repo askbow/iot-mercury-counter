@@ -24,9 +24,7 @@ def progressbar(position, total, end=""):
 
 
 def configure_logging(level=logging.INFO):
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(message)s", level=level
-    )
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=level)
 
 
 def parse_args():
@@ -36,29 +34,35 @@ def parse_args():
     return: ArgumentParser
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "serial", type=str, nargs="?", help="Serial port. e.g. USB4"
-    )
+    parser.add_argument("serial", type=str, nargs="?", help="Serial port. e.g. USB4")
     parser.add_argument(
         "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address"
     )
     parser.add_argument(
-        "psw_range_start", metavar='psw-range-start', type=int, nargs="?", default=0, help="password range start"
+        "psw_range_start",
+        metavar="psw-range-start",
+        type=int,
+        nargs="?",
+        default=0,
+        help="password range start",
     )
     parser.add_argument(
-        "psw_range_end", metavar='psw-range-start', type=int, nargs="?", default=1000000, help="password range end"
+        "psw_range_end",
+        metavar="psw-range-start",
+        type=int,
+        nargs="?",
+        default=1000000,
+        help="password range end",
     )
-    parser.add_argument(
-        "--debug", action='store_true', help='enable detailed logging'
-    )
+    parser.add_argument("--debug", action="store_true", help="enable detailed logging")
     parser.add_argument(
         "--serial-echo-mode",
         type=str,
         nargs="?",
         default="auto",
         const="auto",
-        choices=['enabled', 'disabled', 'auto'],
-        help="Serial port echo mode"
+        choices=["enabled", "disabled", "auto"],
+        help="Serial port echo mode",
     )
     args = parser.parse_args()
     return args

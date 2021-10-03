@@ -20,8 +20,10 @@ WAIT_RESPONSE = 0.150
 class MercuryConnectionException(Exception):
     pass
 
+
 class MercuryReplyDataError(ValueError):
     pass
+
 
 class MercuryADDR:
     """
@@ -77,7 +79,7 @@ MercuryREPLYStatuses = {
 
 SerialSPEEDS = (300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200)
 
-SerialEchoMODES = ('auto', 'enabled', 'disabled')
+SerialEchoMODES = ("auto", "enabled", "disabled")
 
 
 MercuryPASSWORD = {
@@ -673,7 +675,7 @@ class MercuryReply:
 
     def __init__(self, data, req_rep=False):
         if len(data) < 1:
-            m = 'Empty data packet. Cannot parse.'
+            m = "Empty data packet. Cannot parse."
             logging.critical(m)
             raise MercuryReplyDataError(m)
 
@@ -684,21 +686,23 @@ class MercuryReply:
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
 
-        logging.debug(f'parsing reply: {repr_byte_arr(self._data)} using {self.format}')
+        logging.debug(f"parsing reply: {repr_byte_arr(self._data)} using {self.format}")
         try:
             self.fields = list(struct.unpack(self.format, data))
         except Exception as e:
-            m = f'failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}'
+            m = f"failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}"
             logging.critical(m)
             raise
-        logging.debug(f'parsed {repr_byte_arr(self._data)} into {self.fields}')
+        logging.debug(f"parsed {repr_byte_arr(self._data)} into {self.fields}")
 
         if not self.verify_checksum():
             crc = self.raw_checksum
             crc_d = self.checksum
             logging.warning(
                 "bad checksum in %s: %s, expected %s",
-                repr_byte_arr(self._data), repr_byte_arr(crc_d), repr_byte_arr(crc)
+                repr_byte_arr(self._data),
+                repr_byte_arr(crc_d),
+                repr_byte_arr(crc),
             )
         if not self.is_ok():
             logging.error(
@@ -729,7 +733,7 @@ class MercuryReply:
         """
         Extracts frame checksum
         """
-        return crc16(self._data[:self.trailer_offset])
+        return crc16(self._data[: self.trailer_offset])
 
     @property
     def addr(self):
@@ -771,13 +775,15 @@ class MercuryDriver:
     Implements basic communcitation operations
     """
 
-    def __init__(self, com, addr, speed=9600, echo_mode='auto'):
+    def __init__(self, com, addr, speed=9600, echo_mode="auto"):
         try:
             assert speed in SerialSPEEDS
             assert addr in MercuryADDR.UNICAST_SPACE or addr == MercuryADDR.UNIVERSAL
             assert echo_mode in SerialEchoMODES
         except AssertionError as e:
-            logging.critical(f'Driver Parameters out of range: {com},{addr}, {speed}; {e}')
+            logging.critical(
+                f"Driver Parameters out of range: {com},{addr}, {speed}; {e}"
+            )
             raise
 
         self.com = com
@@ -787,24 +793,23 @@ class MercuryDriver:
         self.addr = addr
 
         self.echo_mode = echo_mode
-        if echo_mode == 'auto':
+        if echo_mode == "auto":
             self.echo_mode = self.detect_serial_echo_mode()
 
     def test_com_port(self):
-        logging.debug(f'Testing {self.com} at {self.speed} bps')
+        logging.debug(f"Testing {self.com} at {self.speed} bps")
         try:
             with serial.Serial(
-                    self.com,
-                    self.speed,
-                    serial.EIGHTBITS,
-                    serial.PARITY_NONE,
-                    serial.STOPBITS_ONE,
+                self.com,
+                self.speed,
+                serial.EIGHTBITS,
+                serial.PARITY_NONE,
+                serial.STOPBITS_ONE,
             ) as ser:
                 return ser.isOpen()
         except serial.serialutil.SerialException as e:
-            logging.critical(f'Failed to open {self.com} at {self.speed} bps')
+            logging.critical(f"Failed to open {self.com} at {self.speed} bps")
             raise
-
 
     def communicate(self, req):
         """
@@ -824,7 +829,7 @@ class MercuryDriver:
             out = ser.read_all()
             logging.debug("READ: %s (%s)", out, repr_byte_arr(out))
             reply = out
-            if self.echo_mode == 'enabled':
+            if self.echo_mode == "enabled":
                 echo = out[: len(req)]
                 e_i = int.from_bytes(echo, byteorder="big", signed=False)
                 r_i = int.from_bytes(req, byteorder="big", signed=False)
@@ -840,20 +845,19 @@ class MercuryDriver:
             return reply
 
     def detect_serial_echo_mode(self):
-        logging.info('Detecting serial echo mode...')
+        logging.info("Detecting serial echo mode...")
         reqs = [
             MercuryRequest(
-                random.choice(MercuryADDR.UNICAST_SPACE),
-                MercuryOPS.TEST
+                random.choice(MercuryADDR.UNICAST_SPACE), MercuryOPS.TEST
             ).value
             for _ in range(10)
         ]
         with serial.Serial(
-                self.com,
-                self.speed,
-                serial.EIGHTBITS,
-                serial.PARITY_NONE,
-                serial.STOPBITS_ONE,
+            self.com,
+            self.speed,
+            serial.EIGHTBITS,
+            serial.PARITY_NONE,
+            serial.STOPBITS_ONE,
         ) as ser:
             for req in reqs:
                 ser.write(req)
@@ -861,12 +865,12 @@ class MercuryDriver:
                 out = ser.read_all()
                 req_repr = repr_byte_arr(req)
                 out_repr = repr_byte_arr(out)
-                logging.debug(f'send: {req} ({req_repr}), recv: {out} ({out_repr})')
+                logging.debug(f"send: {req} ({req_repr}), recv: {out} ({out_repr})")
                 if len(out) != len(req) or out != req:
-                    logging.info('Echo not found')
-                    return 'disabled'
-        logging.info('Found evidence of echo on all counts')
-        return 'enabled'
+                    logging.info("Echo not found")
+                    return "disabled"
+        logging.info("Found evidence of echo on all counts")
+        return "enabled"
 
     def test_connection(self):
         """
