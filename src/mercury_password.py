@@ -7,10 +7,6 @@ import logging
 
 from mercury.mercury import MercuryDriver, MercuryADDR
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-
 
 def progressbar(position, total, end=""):
     """
@@ -24,6 +20,12 @@ def progressbar(position, total, end=""):
         f'\r[ {"#" *  pb_curpos}{"-" * (pb_len-pb_curpos)} ] {pb_percent}%\t{end}',
         end="",
         flush=True,
+    )
+
+
+def configure_logging(level=logging.INFO):
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(message)s", level=level
     )
 
 
@@ -46,6 +48,9 @@ def parse_args():
     parser.add_argument(
         "psw-range-end", type=int, nargs="?", default=1000000, help="password range end"
     )
+    parser.add_argument(
+        "--debug", action='store_true', help='enable detailed logging'
+    )
     args = parser.parse_args()
     return args
 
@@ -57,6 +62,7 @@ def main():
     args = parse_args()
     com = args.serial
     address = args.address
+    configure_logging((logging.INFO, logging.DEBUG)[args.debug])
 
     logging.info(f"Starting for serial {com}, address {address}")
 
