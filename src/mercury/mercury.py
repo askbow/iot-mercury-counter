@@ -701,7 +701,7 @@ class MercuryReply:
             logging.warning(
                 "bad checksum in %s: %s, expected %s",
                 repr_byte_arr(self._data),
-                repr_byte_arr(crc_d),
+                repr_byte_arr([crc_d,]),
                 repr_byte_arr(crc),
             )
         if not self.is_ok():
