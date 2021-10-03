@@ -682,12 +682,12 @@ class MercuryReply:
             self.header_offset += 1
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
-        self.parse_data()
+        self.parse_data(verify)
 
-    def parse_data(self):
+    def parse_data(self, verify=True):
         logging.debug(f"parsing reply: {repr_byte_arr(self._data)} using {self.format}")
         try:
-            self.fields = list(struct.unpack(self.format, data))
+            self.fields = list(struct.unpack(self.format, self._data))
         except Exception as e:
             m = f"failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}"
             logging.critical(m)
@@ -756,7 +756,7 @@ class MercuryReply:
         """
         Returns data extracted from the frame
         """
-        return self.fields[self.header_offset : self.trailer_offset]
+        return self.fields[self.header_offset : -1]
 
     @property
     def status(self):
@@ -905,6 +905,10 @@ class MercuryDriver:
         psw_s = str(psw).zfill(6)
         psw_e = bytes([int(d) for d in psw_s])
         req = MercuryRequest(self.addr, MercuryOPS.OPEN, user + psw_e).value
-        reply = MercuryReply(self.communicate(req))
-        logging.debug("login reply: %s", reply.raw_data)
-        return reply.is_ok()
+        data = self.communicate(req)
+        if data:
+            reply = MercuryReply(data)
+            logging.debug("login reply: %s", reply.raw_data)
+            return reply.is_ok()
+        else:
+            return False
