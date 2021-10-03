@@ -10,9 +10,6 @@ import random
 
 import serial
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-)
 
 WAIT_RESPONSE = 0.150
 
