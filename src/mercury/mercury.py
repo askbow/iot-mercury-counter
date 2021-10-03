@@ -792,9 +792,6 @@ class MercuryDriver:
                     serial.PARITY_NONE,
                     serial.STOPBITS_ONE,
             ) as ser:
-                dtr = ser.getDTR()
-                ser.setDTR(not dtr)
-                ser.setDTR(dtr)
                 return ser.isOpen()
         except serial.serialutil.SerialException as e:
             logging.critical(f'Failed to open {self.com} at {self.speed} bps')
