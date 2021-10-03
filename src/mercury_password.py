@@ -43,10 +43,10 @@ def parse_args():
         "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address"
     )
     parser.add_argument(
-        "psw-range-start", type=int, nargs="?", default=0, help="password range start"
+        "psw_range_start", metavar='psw-range-start', type=int, nargs="?", default=0, help="password range start"
     )
     parser.add_argument(
-        "psw-range-end", type=int, nargs="?", default=1000000, help="password range end"
+        "psw_range_end", metavar='psw-range-start', type=int, nargs="?", default=1000000, help="password range end"
     )
     parser.add_argument(
         "--debug", action='store_true', help='enable detailed logging'
