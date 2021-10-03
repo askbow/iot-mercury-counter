@@ -673,7 +673,7 @@ class MercuryReply:
             logging.critical(m)
             raise
         logging.debug(f'parsed {self._data} into {self.fields}')
-        
+
         if not self.verify_checksum():
             crc = crc16(self._data[:-2])
             crc_d = self.checksum
