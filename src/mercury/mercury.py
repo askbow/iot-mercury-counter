@@ -9,6 +9,7 @@ import logging
 import random
 
 import serial
+import serial.serialutil.SerialException as SerialException
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -87,7 +88,7 @@ MercuryPASSWORD = {
 
 
 def repr_byte_arr(bytearr):
-    return " ".join([f"{x:02X}" for x in inputbytes])
+    return " ".join([f"{x:02X}" for x in bytearr])
 
 
 def crc16(data: bytes):
@@ -772,12 +773,31 @@ class MercuryDriver:
             logging.critical(f'Driver Parameters out of range: {com},{addr}, {speed}; {e}')
             raise
 
-        self.addr = addr
         self.com = com
         self.speed = speed
+        self.test_com_port()
+
+        self.addr = addr
+
         self.echo_mode = echo_mode
         if echo_mode == 'auto':
             self.echo_mode = self.detect_serial_echo_mode()
+
+    def test_com_port(self):
+        logging.debug(f'Testing {self.com} at {self.speed} bps')
+        try:
+            with serial.Serial(
+                    self.com,
+                    self.speed,
+                    serial.EIGHTBITS,
+                    serial.PARITY_NONE,
+                    serial.STOPBITS_ONE,
+            ) as ser:
+                pass
+        except SerialException as e:
+            logging.critical(f'Failed to open {self.com} at {self.speed} bps')
+            raise
+
 
     def communicate(self, req):
         """
@@ -830,12 +850,12 @@ class MercuryDriver:
         ) as ser:
             for req in reqs:
                 ser.write(req)
-                time.sleep(WAIT_RESPONSE/10)
-                out = ser.read(len(req))
+                time.sleep(WAIT_RESPONSE)
+                out = ser.read_all()
                 req_repr = repr_byte_arr(req)
                 out_repr = repr_byte_arr(out)
                 logging.debug(f'send: {req} ({req_repr}), recv: {out} ({out_repr})')
-                if out != req:
+                if len(out) != len(req) or out != req:
                     logging.info('Echo not found')
                     return 'disabled'
         logging.info('Found evidence of echo on all counts')
