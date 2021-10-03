@@ -6,6 +6,7 @@ Implements Mercury Protocol for version 05.2021
 import struct
 import time
 import logging
+import random
 
 import serial
 
@@ -74,12 +75,19 @@ MercuryREPLYStatuses = {
     MercuryREPLY.LOGIN_REQUIRED: "Operation requires open channel",
 }
 
-MercurySPEEDS = (300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200)
+SerialSPEEDS = (300, 600, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200)
+
+SerialEchoMODES = ('auto', 'enabled', 'disabled')
+
 
 MercuryPASSWORD = {
     MercuryLEVEL.USER: 111111,
     MercuryLEVEL.ADMIN: 222222,
 }
+
+
+def repr_byte_arr(bytearr):
+    return " ".join([f"{x:02X}" for x in inputbytes])
 
 
 def crc16(data: bytes):
@@ -638,6 +646,9 @@ class MercuryRequest:
     def __len__(self):
         return len(self.value)
 
+    def __repr__(self):
+        return repr_byte_arr(self.value)
+
     @property
     def value(self):
         """
@@ -672,19 +683,22 @@ class MercuryReply:
         self._data = data
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
 
-        logging.debug(f'parsing reply: {self._data} using {self.format}')
+        logging.debug(f'parsing reply: {repr_byte_arr(self._data)} using {self.format}')
         try:
             self.fields = list(struct.unpack(self.format, data))
         except Exception as e:
-            m = f'failed to parse data {self._data} using {self.format}: {e}'
+            m = f'failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}'
             logging.critical(m)
             raise
-        logging.debug(f'parsed {self._data} into {self.fields}')
+        logging.debug(f'parsed {repr_byte_arr(self._data)} into {self.fields}')
 
         if not self.verify_checksum():
             crc = crc16(self._data[:-2])
             crc_d = self.checksum
-            logging.warning("bad checksum in %s: %i, expected %i", data, crc_d, crc)
+            logging.warning(
+                "bad checksum in %s: %i, expected %i",
+                repr_byte_arr(self._data), crc_d, crc
+            )
         if not self.is_ok():
             logging.error(
                 MercuryREPLYStatuses.get(self.status, f"Unknown error: {self.status}")
@@ -692,6 +706,9 @@ class MercuryReply:
 
     def __len__(self):
         return len(self._data)
+
+    def __repr__(self):
+        return repr_byte_arr(self._data)
 
     def verify_checksum(self):
         """
@@ -746,12 +763,21 @@ class MercuryDriver:
     Implements basic communcitation operations
     """
 
-    def __init__(self, com, addr, speed=9600):
-        self.com = com
-        assert speed in MercurySPEEDS
-        self.speed = speed
-        assert addr in MercuryADDR.UNICAST_SPACE or addr == MercuryADDR.UNIVERSAL
+    def __init__(self, com, addr, speed=9600, echo_mode='auto'):
+        try:
+            assert speed in SerialSPEEDS
+            assert addr in MercuryADDR.UNICAST_SPACE or addr == MercuryADDR.UNIVERSAL
+            assert echo_mode in SerialEchoMODES
+        except AssertionError as e:
+            logging.critical(f'Driver Parameters out of range: {e}')
+            raise
+
         self.addr = addr
+        self.com = com
+        self.speed = speed
+        self.echo_mode = echo_mode
+        if echo_mode == 'auto':
+            self.echo_mode = self.detect_serial_echo_mode()
 
     def communicate(self, req):
         """
@@ -765,18 +791,18 @@ class MercuryDriver:
             serial.PARITY_NONE,
             serial.STOPBITS_ONE,
         ) as ser:
-            logging.debug("SEND: %s", req)
+            logging.debug("SEND: %s (%s)", req, repr_byte_arr(req))
             ser.write(req)
             time.sleep(WAIT_RESPONSE)
             out = ser.read_all()
-            logging.debug("READ: %s", req)
+            logging.debug("READ: %s (%s)", out, repr_byte_arr(out))
             reply = out
-            if len(out) >= len(req):
+            if self.echo_mode == 'enabled':
                 echo = out[: len(req)]
                 e_i = int.from_bytes(echo, byteorder="big", signed=False)
                 r_i = int.from_bytes(req, byteorder="big", signed=False)
                 if e_i == r_i and hash(echo) == hash(req):
-                    logging.debug("stripping echo: %s", echo)
+                    logging.debug("stripping echo: %s (%s)", echo, repr_byte_arr(echo))
                 reply = ""
                 try:
                     reply = out[len(req) :]
@@ -785,6 +811,35 @@ class MercuryDriver:
                     if len(out) == len(req):
                         raise
             return reply
+
+    def detect_serial_echo_mode(self):
+        logging.info('Detecting serial echo mode...')
+        reqs = [
+            MercuryRequest(
+                random.choice(MercuryADDR.UNICAST_SPACE),
+                MercuryOPS.TEST
+            ).value
+            for _ in range(10)
+        ]
+        with serial.Serial(
+                self.com,
+                self.speed,
+                serial.EIGHTBITS,
+                serial.PARITY_NONE,
+                serial.STOPBITS_ONE,
+        ) as ser:
+            for req in reqs:
+                ser.write(req)
+                time.sleep(WAIT_RESPONSE/10)
+                out = ser.read(len(req))
+                req_repr = repr_byte_arr(req)
+                out_repr = repr_byte_arr(out)
+                logging.debug(f'send: {req} ({req_repr}), recv: {out} ({out_repr})')
+                if out != req:
+                    logging.info('Echo not found')
+                    return 'disabled'
+        logging.info('Found evidence of echo on all counts')
+        return 'enabled'
 
     def test_connection(self):
         """

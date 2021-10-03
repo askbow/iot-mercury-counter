@@ -51,6 +51,15 @@ def parse_args():
     parser.add_argument(
         "--debug", action='store_true', help='enable detailed logging'
     )
+    parser.add_argument(
+        "--serial-echo-mode",
+        type=str,
+        nargs="?",
+        default="auto",
+        const="auto",
+        choices=['enabled', 'disabled', 'auto'],
+        help="Serial port echo mode"
+    )
     args = parser.parse_args()
     return args
 
@@ -62,11 +71,12 @@ def main():
     args = parse_args()
     com = args.serial
     address = args.address
+    echo_mode = args.serial_echo_mode
     configure_logging((logging.INFO, logging.DEBUG)[args.debug])
 
-    logging.info(f"Starting for serial {com}, address {address}")
+    logging.info(f"Starting for serial {com} ({echo_mode}), address {address}")
 
-    counter = MercuryDriver(com, address)
+    counter = MercuryDriver(com, address, echo_mode)
     counter.test_connection()
     counter.logout()
 
