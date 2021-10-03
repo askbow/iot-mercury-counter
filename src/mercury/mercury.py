@@ -9,7 +9,6 @@ import logging
 import random
 
 import serial
-import serial.serialutil.SerialException as SerialException
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -793,8 +792,11 @@ class MercuryDriver:
                     serial.PARITY_NONE,
                     serial.STOPBITS_ONE,
             ) as ser:
-                pass
-        except SerialException as e:
+                dtr = ser.getDTR()
+                ser.setDTR(not dtr)
+                ser.setDTR(dtr)
+                return ser.isOpen()
+        except serial.serialutil.SerialException as e:
             logging.critical(f'Failed to open {self.com} at {self.speed} bps')
             raise
 
