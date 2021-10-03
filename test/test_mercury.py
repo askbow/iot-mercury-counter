@@ -24,9 +24,15 @@ def test_repr_byte_arr():
 def test_crc16():
     assert mercury.crc16(b"\x00\x02") == bytearray(b"\x80\x71")
     assert mercury.crc16(b"\x00\x00") == bytearray(b"\x01\xb0")
+    assert mercury.crc16(b"\x01\x00") == bytearray(b"\x00\x20")
     assert mercury.crc16(b"\x00\x01\x02\x02\x02\x02\x02\x02\x02") == bytearray(
         b"\xb0\x07"
     )
+    assert mercury.crc16(b"foobar") == bytearray(b"\xc8\xab")
+    assert mercury.crc16(b"\x01\x01\x01\x01") == bytearray(b"\x90H")
+    assert mercury.crc16(b"\xff\xff\xff\xff") == bytearray(b"\x01\xb0")
+    assert mercury.crc16(b"\x00\x00\x00\x00") == bytearray(b"\x00$")
+    assert mercury.crc16(b"\x80\x16\x03\x00\x01\x01") == bytearray(b"\x96\x0c")
 
 
 class TestMercuryRequest:
