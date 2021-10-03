@@ -677,6 +677,7 @@ class MercuryReply:
             logging.critical(m)
             raise MercuryReplyDataError(m)
 
+        self.trailer_offset = -1
         self.header_offset = 1
         if req_rep:
             self.header_offset += 1
@@ -693,11 +694,11 @@ class MercuryReply:
         logging.debug(f'parsed {repr_byte_arr(self._data)} into {self.fields}')
 
         if not self.verify_checksum():
-            crc = crc16(self._data[:-2])
+            crc = self.raw_checksum
             crc_d = self.checksum
             logging.warning(
-                "bad checksum in %s: %i, expected %i",
-                repr_byte_arr(self._data), crc_d, crc
+                "bad checksum in %s: %s, expected %s",
+                repr_byte_arr(self._data), repr_byte_arr(crc_d), repr_byte_arr(crc)
             )
         if not self.is_ok():
             logging.error(
@@ -714,14 +715,21 @@ class MercuryReply:
         """
         Verifies Frame Checksum is correct
         """
-        return crc16(self._data[:-2]) == self.checksum
+        return self.raw_checksum == self.checksum
 
     @property
     def checksum(self):
         """
         Extracts frame checksum
         """
-        return self.fields[-1]
+        return self.fields[self.trailer_offset]
+
+    @property
+    def raw_checksum(self):
+        """
+        Extracts frame checksum
+        """
+        return crc16(self._data[:self.trailer_offset])
 
     @property
     def addr(self):
@@ -742,7 +750,7 @@ class MercuryReply:
         """
         Returns data extracted from the frame
         """
-        return self.fields[self.header_offset : -1]
+        return self.fields[self.header_offset : self.trailer_offset]
 
     @property
     def status(self):
