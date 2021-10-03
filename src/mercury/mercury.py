@@ -692,8 +692,12 @@ class MercuryReply:
             m = f"failed to parse data {repr_byte_arr(self._data)} using {self.format}: {e}"
             logging.critical(m)
             raise
-        logging.debug(f"parsed {repr_byte_arr(self._data)} into {self.fields} ({self.parsed_data})")
-        logging.debug(f'addr: {self.addr}, status: {self.status}, checksum: {self.checksum}')
+        logging.debug(
+            f"parsed {repr_byte_arr(self._data)} into {self.fields} ({self.parsed_data})"
+        )
+        logging.debug(
+            f"addr: {self.addr}, status: {self.status}, checksum: {self.checksum}"
+        )
 
         if verify and not self.verify_checksum():
             crc = self.raw_checksum
@@ -728,7 +732,7 @@ class MercuryReply:
         """
         Extracts frame checksum
         """
-        return bytearray(self._data[self.trailer_offset:])
+        return bytearray(self._data[self.trailer_offset :])
 
     @property
     def raw_checksum(self):
@@ -868,7 +872,7 @@ class MercuryDriver:
                 req_repr = repr_byte_arr(req)
                 out_repr = repr_byte_arr(out)
                 logging.debug(f"send: {req} ({req_repr}), recv: {out} ({out_repr})")
-                if len(req) > len(out) or repr_byte_arr(out[:len(req)]) != req_repr:
+                if len(req) > len(out) or repr_byte_arr(out[: len(req)]) != req_repr:
                     logging.info("Echo not found")
                     return "disabled"
         logging.info("Found evidence of echo on all counts")

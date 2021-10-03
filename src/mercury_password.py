@@ -80,7 +80,7 @@ def main():
 
     logging.info(f"Starting for serial {com} ({echo_mode}), address {address}")
     if com is None:
-        logging.fatal('You MUST specify a COM port.')
+        logging.fatal("You MUST specify a COM port.")
         return
 
     counter = MercuryDriver(com=com, addr=address, echo_mode=echo_mode)
