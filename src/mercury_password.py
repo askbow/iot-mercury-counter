@@ -76,7 +76,7 @@ def main():
 
     logging.info(f"Starting for serial {com} ({echo_mode}), address {address}")
 
-    counter = MercuryDriver(com, address, echo_mode)
+    counter = MercuryDriver(com=com, addr=address, echo_mode=echo_mode)
     counter.test_connection()
     counter.logout()
 

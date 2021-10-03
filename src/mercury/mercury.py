@@ -769,7 +769,7 @@ class MercuryDriver:
             assert addr in MercuryADDR.UNICAST_SPACE or addr == MercuryADDR.UNIVERSAL
             assert echo_mode in SerialEchoMODES
         except AssertionError as e:
-            logging.critical(f'Driver Parameters out of range: {e}')
+            logging.critical(f'Driver Parameters out of range: {com},{addr}, {speed}; {e}')
             raise
 
         self.addr = addr
