@@ -40,6 +40,12 @@ def parse_args():
     parser.add_argument(
         "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address"
     )
+    parser.add_argument(
+        "psw-range-start", type=int, nargs="?", default=0, help="password range start"
+    )
+    parser.add_argument(
+        "psw-range-end", type=int, nargs="?", default=1000000, help="password range end"
+    )
     args = parser.parse_args()
     return args
 
@@ -58,7 +64,7 @@ def main():
     counter.test_connection()
     counter.logout()
 
-    passwords = range(0, 1000000)
+    passwords = range(args.psw_range_start, args.psw_range_end)
     total = len(passwords)
     logging.info("Trying %i passwords:", total)
     progressbar(0, total, "")
