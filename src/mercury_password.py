@@ -35,7 +35,7 @@ def parse_args():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "serial", type=str, nargs="?", default=0, help="Serial port. e.g. USB4"
+        "serial", type=str, nargs="?", required=True, help="Serial port. e.g. USB4"
     )
     parser.add_argument(
         "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address"
@@ -51,6 +51,8 @@ def main():
     args = parse_args()
     com = args.serial
     address = args.address
+
+    logging.info(f"Starting for serial {com}, address {address}")
 
     counter = MercuryDriver(com, address)
     counter.test_connection()
