@@ -1,15 +1,11 @@
-"""
-Implements Mercury Protocol for version 05.2021
+"""Implements Mercury Protocol for version 05.2021."""
 
-"""
-
-import struct
-import time
 import logging
 import random
+import struct
+import time
 
 import serial
-
 
 WAIT_RESPONSE = 0.150
 
@@ -23,9 +19,7 @@ class MercuryReplyDataError(ValueError):
 
 
 class MercuryADDR:
-    """
-    Address constants
-    """
+    """Address constants."""
 
     UNIVERSAL = 0x00
     UNICAST_SPACE = range(0x01, 0xF1)
@@ -34,9 +28,7 @@ class MercuryADDR:
 
 
 class MercuryOPS:
-    """
-    Supported Operation codes
-    """
+    """Supported Operation codes."""
 
     TEST = 0
     OPEN = 1
@@ -44,18 +36,14 @@ class MercuryOPS:
 
 
 class MercuryLEVEL:
-    """
-    User levels for MercuryOPS.OPEN
-    """
+    """User levels for MercuryOPS.OPEN."""
 
     USER = b"\x01"
     ADMIN = b"\x02"
 
 
 class MercuryREPLY:
-    """
-    Reply Status Codes
-    """
+    """Reply Status Codes."""
 
     OK = 0
     BAD_COMMAND = 1
@@ -90,9 +78,7 @@ def repr_byte_arr(bytearr):
 
 
 def crc16(data: bytes):
-    """
-    CRC16-MODBUS adapted from Mercury Documentation
-    """
+    """CRC16-MODBUS adapted from Mercury Documentation."""
     sr_crc_hi = bytearray(
         [
             0x00,
@@ -351,7 +337,7 @@ def crc16(data: bytes):
             0xC1,
             0x81,
             0x40,
-        ]
+        ],
     )
     sr_crc_low = bytearray(
         [
@@ -611,7 +597,7 @@ def crc16(data: bytes):
             0x81,
             0x80,
             0x40,
-        ]
+        ],
     )
     initial_crc = 0xFFFF
 
@@ -631,28 +617,24 @@ def crc16(data: bytes):
 
 
 class MercuryRequest:
-    """
-    Encodes Request messages
-    """
+    """Encodes Request messages."""
 
-    def __init__(self, address, request_code, args=None):
+    def __init__(self, address, request_code, args=None) -> None:
         self.address = address
         self.request_code = request_code
         self.params = args
         self._value = None
         self.format = "<BB"
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr_byte_arr(self.value)
 
     @property
     def value(self):
-        """
-        Encodes fields into a binary value
-        """
+        """Encodes fields into a binary value."""
         if self._value is None:
             self._value = struct.pack(
                 self.format,
@@ -666,11 +648,9 @@ class MercuryRequest:
 
 
 class MercuryReply:
-    """
-    Decodes Reply Messages from binary frames
-    """
+    """Decodes Reply Messages from binary frames."""
 
-    def __init__(self, data, req_rep=False, verify=True):
+    def __init__(self, data, req_rep=False, verify=True) -> None:
         if len(data) < 1:
             m = "Empty data packet. Cannot parse."
             logging.critical(m)
@@ -684,7 +664,7 @@ class MercuryReply:
         self.format = "".join(["<B", "B" * (len(data) - self.header_offset - 2), "H"])
         self.parse_data(verify)
 
-    def parse_data(self, verify=True):
+    def parse_data(self, verify=True) -> None:
         logging.debug(f"parsing reply: {repr_byte_arr(self._data)} using {self.format}")
         try:
             self.fields = list(struct.unpack(self.format, self._data))
@@ -693,10 +673,10 @@ class MercuryReply:
             logging.critical(m)
             raise
         logging.debug(
-            f"parsed {repr_byte_arr(self._data)} into {self.fields} ({self.parsed_data})"
+            f"parsed {repr_byte_arr(self._data)} into {self.fields} ({self.parsed_data})",
         )
         logging.debug(
-            f"addr: {self.addr}, status: {self.status}, checksum: {self.checksum}"
+            f"addr: {self.addr}, status: {self.status}, checksum: {self.checksum}",
         )
 
         if verify and not self.verify_checksum():
@@ -710,85 +690,67 @@ class MercuryReply:
             )
         if not self.is_ok():
             logging.error(
-                MercuryREPLYStatuses.get(self.status, f"Unknown error: {self.status}")
+                MercuryREPLYStatuses.get(self.status, f"Unknown error: {self.status}"),
             )
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr_byte_arr(self._data)
 
     def verify_checksum(self):
-        """
-        Verifies Frame Checksum is correct
-        """
+        """Verifies Frame Checksum is correct."""
         crc = self.raw_checksum
         crc_d = self.checksum
         return repr_byte_arr(crc_d) == repr_byte_arr(crc)
 
     @property
     def checksum(self):
-        """
-        Extracts frame checksum
-        """
+        """Extracts frame checksum."""
         return bytearray(self._data[self.trailer_offset :])
 
     @property
     def raw_checksum(self):
-        """
-        Extracts frame checksum
-        """
+        """Extracts frame checksum."""
         return crc16(self._data[: self.trailer_offset])
 
     @property
     def addr(self):
-        """
-        Extracts frame address
-        """
+        """Extracts frame address."""
         return self.fields[0]
 
     @property
     def raw_data(self):
-        """
-        Produce original binary data
-        """
+        """Produce original binary data."""
         return self._data
 
     @property
     def parsed_data(self):
-        """
-        Returns data extracted from the frame
-        """
+        """Returns data extracted from the frame."""
         return self.fields[self.header_offset : -1]
 
     @property
     def status(self):
-        """
-        Read status field from data
-        """
+        """Read status field from data."""
         return self.parsed_data[0] & 0x07
 
     def is_ok(self):
-        """
-        True if operation status is OK (Success)
-        """
+        """True if operation status is OK (Success)."""
         return self.status == MercuryREPLY.OK
 
 
 class MercuryDriver:
-    """
-    Implements basic communcitation operations
-    """
+    """Implements basic communcitation operations."""
 
-    def __init__(self, com, addr, speed=9600, echo_mode="auto"):
+    def __init__(self, com, addr, speed=9600, echo_mode="auto") -> None:
         try:
             assert speed in SerialSPEEDS
             assert addr in MercuryADDR.UNICAST_SPACE or addr == MercuryADDR.UNIVERSAL
             assert echo_mode in SerialEchoMODES
         except AssertionError as e:
             logging.critical(
-                f"Driver Parameters out of range: {com},{addr}, {speed}; {e}"
+                f"Driver Parameters out of range: {com},{addr}, {speed}; {e}",
             )
             raise
 
@@ -818,8 +780,7 @@ class MercuryDriver:
             raise
 
     def communicate(self, req):
-        """
-        Opens serial port, sends request, reads reply.
+        """Opens serial port, sends request, reads reply.
         Detects and strips CAN echo when possible.
         """
         with serial.Serial(
@@ -845,16 +806,16 @@ class MercuryDriver:
                 try:
                     reply = out[len(req) :]
                 except IndexError:
-                    logging.error("no reply after stripping echo")
+                    logging.exception("no reply after stripping echo")
                     if len(out) == len(req):
                         raise
             return reply
 
-    def detect_serial_echo_mode(self):
+    def detect_serial_echo_mode(self) -> str:
         logging.info("Detecting serial echo mode...")
         reqs = [
             MercuryRequest(
-                random.choice(MercuryADDR.UNICAST_SPACE), MercuryOPS.TEST
+                random.choice(MercuryADDR.UNICAST_SPACE), MercuryOPS.TEST,
             ).value
             for _ in range(10)
         ]
@@ -879,31 +840,26 @@ class MercuryDriver:
         return "enabled"
 
     def test_connection(self):
-        """
-        Runs a connection test for the specified address
-        """
+        """Runs a connection test for the specified address."""
         req = MercuryRequest(self.addr, MercuryOPS.TEST).value
         try:
             reply = MercuryReply(self.communicate(req))
         except Exception as ex:
             logging.fatal("Connection failed to %s", self.addr)
-            raise MercuryConnectionException("Connection failure") from ex
+            msg = "Connection failure"
+            raise MercuryConnectionException(msg) from ex
         logging.debug("connection test reply : %s", {reply.raw_data})
         return reply.is_ok()
 
     def logout(self):
-        """
-        Explicitly Closes communication channel
-        """
+        """Explicitly Closes communication channel."""
         req = MercuryRequest(self.addr, MercuryOPS.CLOSE).value
         reply = MercuryReply(self.communicate(req))
         logging.debug("connection close reply: %s", reply.raw_data)
         return reply.is_ok()
 
     def login(self, user=MercuryLEVEL.ADMIN, psw=None):
-        """
-        Opens Communications Channel with specified user code and password
-        """
+        """Opens Communications Channel with specified user code and password."""
         if psw is None:
             psw = MercuryPASSWORD.get(user, 0)
         psw_s = str(psw).zfill(6)
@@ -914,5 +870,4 @@ class MercuryDriver:
             reply = MercuryReply(data)
             logging.debug("login reply: %s", reply.raw_data)
             return reply.is_ok()
-        else:
-            return False
+        return False

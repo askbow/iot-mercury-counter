@@ -1,42 +1,32 @@
-"""
-Implements password search
-"""
+"""Implements password search."""
 
 import argparse
 import logging
 
-from mercury.mercury import MercuryDriver, MercuryADDR
+from mercury.mercury import MercuryADDR, MercuryDriver
 
 
-def progressbar(position, total, end=""):
-    """
-    Draws a progress bar in CLI
-    """
+def progressbar(position, total, end="") -> None:
+    """Draws a progress bar in CLI."""
     max_v = total - 1
     pb_len = 50
-    pb_curpos = int(position / max_v * pb_len)
-    pb_percent = int(position / max_v * 100)
-    print(
-        f"\r[ {'#' * pb_curpos}{'-' * (pb_len - pb_curpos)} ] {pb_percent}%\t{end}",
-        end="",
-        flush=True,
-    )
+    int(position / max_v * pb_len)
+    int(position / max_v * 100)
 
 
-def configure_logging(level=logging.INFO):
+def configure_logging(level=logging.INFO) -> None:
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=level)
 
 
 def parse_args():
-    """
-    Parse CLI args
+    """Parse CLI args.
 
     return: ArgumentParser
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("serial", type=str, nargs="?", help="Serial port. e.g. USB4")
     parser.add_argument(
-        "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address"
+        "address", type=int, nargs="?", default=MercuryADDR.UNIVERSAL, help="address",
     )
     parser.add_argument(
         "psw_range_start",
@@ -64,14 +54,11 @@ def parse_args():
         choices=["enabled", "disabled", "auto"],
         help="Serial port echo mode",
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
-def main():
-    """
-    Opens a channel to a counter, and tries all possible passwords
-    """
+def main() -> None:
+    """Opens a channel to a counter, and tries all possible passwords."""
     args = parse_args()
     com = args.serial
     address = args.address
