@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import patch, PropertyMock
 
 import src.mercury.mercury as mercury
 from src.mercury.mercury import MercuryRequest
@@ -40,8 +39,8 @@ class TestMercuryRequest:
         req = mercury.MercuryRequest(address=0, request_code=0)
         assert req.request_code == 0
         assert req.address == 0
-        assert req.params == None
-        assert req._value == None
+        assert req.params is None
+        assert req._value is None
 
     @patch("src.mercury.mercury.MercuryRequest.value", new_callable=PropertyMock)
     def test___len__(self, mock_value):

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Implements password search
 """
 
@@ -17,7 +17,7 @@ def progressbar(position, total, end=""):
     pb_curpos = int(position / max_v * pb_len)
     pb_percent = int(position / max_v * 100)
     print(
-        f'\r[ {"#" *  pb_curpos}{"-" * (pb_len-pb_curpos)} ] {pb_percent}%\t{end}',
+        f"\r[ {'#' * pb_curpos}{'-' * (pb_len - pb_curpos)} ] {pb_percent}%\t{end}",
         end="",
         flush=True,
     )

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Implements Mercury Protocol for version 05.2021
 
 """
@@ -813,7 +813,7 @@ class MercuryDriver:
                 serial.STOPBITS_ONE,
             ) as ser:
                 return ser.isOpen()
-        except serial.serialutil.SerialException as e:
+        except serial.serialutil.SerialException:
             logging.critical(f"Failed to open {self.com} at {self.speed} bps")
             raise
 
